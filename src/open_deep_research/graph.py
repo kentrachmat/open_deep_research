@@ -1,5 +1,5 @@
 from typing import Literal
-
+import os 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -37,7 +37,18 @@ from open_deep_research.utils import (
     select_and_execute_search
 )
 
-## Nodes -- 
+# from langchain.chat_models import AzureChatOpenAI
+
+## Nodes --  
+MODEL = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]
+MODEL_PROVIDER = os.environ["MODEL_PROVIDER"]
+API_VERSION = os.environ["AZURE_OPENAI_API_VERSION"]
+AZURE_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
+KEY = os.environ["AZURE_OPENAI_API_KEY"]
+
+# init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
+# AzureChatOpenAI( azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"], azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"], openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"], openai_api_key=os.environ["AZURE_OPENAI_API_KEY"], )
+
 
 async def generate_report_plan(state: ReportState, config: RunnableConfig):
     """Generate the initial report plan with sections.
@@ -75,7 +86,8 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     # Set writer model (model used for query writing)
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider) 
+    writer_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
+    
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions
@@ -111,9 +123,7 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
                                       thinking={"type": "enabled", "budget_tokens": 16_000})
 
     else:
-        # With other models, thinking tokens are not specifically allocated
-        planner_llm = init_chat_model(model=planner_model, 
-                                      model_provider=planner_provider)
+        planner_llm = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER) 
     
     # Generate the report sections
     structured_llm = planner_llm.with_structured_output(Sections)
@@ -157,8 +167,9 @@ def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Litera
     interrupt_message = f"""Please provide feedback on the following report plan. 
                         \n\n{sections_str}\n
                         \nDoes the report plan meet your needs?\nPass 'true' to approve the report plan.\nOr, provide feedback to regenerate the report plan:"""
-    
-    feedback = interrupt(interrupt_message)
+
+    # feedback = interrupt(interrupt_message)
+    feedback = True
 
     # If the user approves the report plan, kick off section writing
     if isinstance(feedback, bool) and feedback is True:
@@ -202,7 +213,7 @@ def generate_queries(state: SectionState, config: RunnableConfig):
     # Generate queries 
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider) 
+    writer_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions
@@ -285,7 +296,7 @@ def write_section(state: SectionState, config: RunnableConfig) -> Command[Litera
     # Generate section  
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider) 
+    writer_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
 
     section_content = writer_model.invoke([SystemMessage(content=section_writer_instructions),
                                            HumanMessage(content=section_writer_inputs_formatted)])
@@ -314,8 +325,7 @@ def write_section(state: SectionState, config: RunnableConfig) -> Command[Litera
                                            max_tokens=20_000, 
                                            thinking={"type": "enabled", "budget_tokens": 16_000}).with_structured_output(Feedback)
     else:
-        reflection_model = init_chat_model(model=planner_model, 
-                                           model_provider=planner_provider).with_structured_output(Feedback)
+        reflection_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER).with_structured_output(Feedback)
     # Generate feedback
     feedback = reflection_model.invoke([SystemMessage(content=section_grader_instructions_formatted),
                                         HumanMessage(content=section_grader_message)])
@@ -363,7 +373,7 @@ def write_final_sections(state: SectionState, config: RunnableConfig):
     # Generate section  
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider) 
+    writer_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
     
     section_content = writer_model.invoke([SystemMessage(content=system_instructions),
                                            HumanMessage(content="Generate a report section based on the provided sources.")])
