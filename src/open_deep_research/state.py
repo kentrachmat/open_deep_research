@@ -69,6 +69,7 @@ class ReportState(TypedDict):
     sections: list[Section] # List of report sections 
     completed_sections: Annotated[list, operator.add] # Send() API key
     report_sections_from_research: str # String of any completed sections from research to write final sections
+    sources: list[Source] # List of sources
     final_report: str # Final report
 
 class SectionState(TypedDict):

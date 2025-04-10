@@ -265,7 +265,6 @@ async def search_web(state: SectionState, config: RunnableConfig):
 
     # Search the web with parameters
     source_str = await select_and_execute_search(search_api, query_list, params_to_pass)
-
     return {"source_str": source_str, "search_iterations": state["search_iterations"] + 1}
 
 def write_section(state: SectionState, config: RunnableConfig) -> Command[Literal[END, "search_web"]]:
@@ -423,7 +422,7 @@ def gather_completed_sections(state: ReportState, config: RunnableConfig):
     planner_model = get_config_value(configurable.planner_model)
     
     # Report planner instructions
-    planner_message = """Generate the list of sources. Your response must include a 'sources' field containing a list of sources. 
+    planner_message = """Generate the list of sources from Sources from each section to create a bibliography. Your response must include a 'sources' field containing a list of sources. 
                         Each source must have: name, and link fields."""
                         
                         

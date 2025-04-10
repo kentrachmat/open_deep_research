@@ -177,7 +177,7 @@ section_grader_instructions = """Review a bibliography section relative to the s
 <task>
 Evaluate whether the section content only includes related works adequately addresses the section topic.
 
-If the section content does not only includes related works adequately address the section topic, generate {number_of_follow_up_queries} follow-up search queries to gather missing information.
+If the sources in the section does not include enough related works to adequately address the section topic (at least 5), generate {number_of_follow_up_queries} follow-up search queries to gather missing information.
 </task>
 
 <format>
