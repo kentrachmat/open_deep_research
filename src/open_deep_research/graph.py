@@ -12,6 +12,7 @@ from open_deep_research.state import (
     ReportStateInput,
     ReportStateOutput,
     Sections,
+    Sources,
     ReportState,
     SectionState,
     SectionOutputState,
@@ -392,7 +393,7 @@ def write_final_sections(state: SectionState, config: RunnableConfig):
     # Write the updated section to completed sections
     return {"completed_sections": [section]}
 
-def gather_completed_sections(state: ReportState):
+def gather_completed_sections(state: ReportState, config: RunnableConfig):
     """Format completed sections as context for writing final sections.
     
     This node takes all completed research sections and formats them into
@@ -410,8 +411,41 @@ def gather_completed_sections(state: ReportState):
 
     # Format completed section to str to use as context for final sections
     completed_report_sections = format_sections(completed_sections)
+    
+    
+    
+    
+    # EXTRACT BIBLIOGRAPHY
+    
+    configurable = Configuration.from_runnable_config(config)
+    # Set the planner
+    planner_provider = get_config_value(configurable.planner_provider)
+    planner_model = get_config_value(configurable.planner_model)
+    
+    # Report planner instructions
+    planner_message = """Generate the list of sources. Your response must include a 'sources' field containing a list of sources. 
+                        Each source must have: name, and link fields."""
+                        
+                        
+    # Run the planner
+    if planner_model == "claude-3-7-sonnet-latest":
+        # Allocate a thinking budget for claude-3-7-sonnet-latest as the planner model
+        planner_llm = init_chat_model(model=planner_model, 
+                                      model_provider=planner_provider, 
+                                      max_tokens=20_000, 
+                                      thinking={"type": "enabled", "budget_tokens": 16_000})
 
-    return {"report_sections_from_research": completed_report_sections}
+    else:
+        planner_llm = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER) 
+    
+    # Generate the sources dictionary
+    structured_llm = planner_llm.with_structured_output(Sources)
+    sources = structured_llm.invoke([SystemMessage(content=completed_report_sections),
+                                             HumanMessage(content=planner_message)])
+    
+    print(sources)
+
+    return {"report_sections_from_research": completed_report_sections, "sources": sources.sources}
 
 def compile_final_report(state: ReportState):
     """Compile all sections into the final report.
@@ -489,9 +523,10 @@ builder.add_node("compile_final_report", compile_final_report)
 builder.add_edge(START, "generate_report_plan")
 builder.add_edge("generate_report_plan", "human_feedback")
 builder.add_edge("build_section_with_web_research", "gather_completed_sections")
+builder.add_edge("gather_completed_sections", END)
 # builder.add_conditional_edges("gather_completed_sections", initiate_final_section_writing, ["write_final_sections"])
-builder.add_edge("gather_completed_sections", "write_final_sections")
-builder.add_edge("write_final_sections", "compile_final_report")
-builder.add_edge("compile_final_report", END)
+# builder.add_edge("gather_completed_sections", "write_final_sections")
+# builder.add_edge("write_final_sections", "compile_final_report")
+# builder.add_edge("compile_final_report", END)
 
 graph = builder.compile()

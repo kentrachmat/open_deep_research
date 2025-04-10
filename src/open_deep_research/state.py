@@ -2,6 +2,20 @@ from typing import Annotated, List, TypedDict, Literal
 from pydantic import BaseModel, Field
 import operator
 
+class Source(BaseModel):
+    name: str = Field(
+        description="Name for this paper.",
+    )
+    link: str = Field(
+        description="Link of this paper.",
+    )
+
+class Sources(BaseModel):
+    sources: List[Source] = Field(
+        description="List of sources.",
+    )
+    
+
 class Section(BaseModel):
     name: str = Field(
         description="Name for this section of the report.",
