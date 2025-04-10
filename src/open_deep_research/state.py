@@ -39,12 +39,18 @@ class Feedback(BaseModel):
 
 class ReportStateInput(TypedDict):
     topic: str # Report topic
+    title: str # Paper title
+    abstract: str # Paper abstract
+    paper_content: str # Paper content
     
 class ReportStateOutput(TypedDict):
     final_report: str # Final report
 
 class ReportState(TypedDict):
-    topic: str # Report topic    
+    topic: str # Report topic   
+    title: str # Paper title
+    abstract: str # Paper abstract
+    paper_content: str # Paper content
     feedback_on_report_plan: str # Feedback on the report plan
     sections: list[Section] # List of report sections 
     completed_sections: Annotated[list, operator.add] # Send() API key

@@ -20,7 +20,7 @@ from open_deep_research.state import (
 )
 
 from open_deep_research.prompts import (
-    # report_planner_query_writer_instructions,
+    report_planner_query_writer_instructions,
     report_planner_instructions,
     query_writer_instructions, 
     section_writer_instructions,
@@ -42,20 +42,22 @@ from open_deep_research.utils import (
 ## Nodes --  
 MODEL = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]
 MODEL_PROVIDER = os.environ["MODEL_PROVIDER"]
-API_VERSION = os.environ["OPENAI_API_VERSION"]
+API_VERSION = os.environ["AZURE_OPENAI_API_VERSION"]
 AZURE_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 KEY = os.environ["AZURE_OPENAI_API_KEY"]
 
 # init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
-# AzureChatOpenAI( azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"], azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"], openai_api_version=os.environ["OPENAI_API_VERSION"], openai_api_key=os.environ["AZURE_OPENAI_API_KEY"], )
+# AzureChatOpenAI( azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"], azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"], openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"], openai_api_key=os.environ["AZURE_OPENAI_API_KEY"], )
 
 
 async def generate_report_plan(state: ReportState, config: RunnableConfig):
     """Generate the initial report plan with sections.
     
     This node:
-    1. Gets configuration of the report structure
-    2. Uses an LLM to generate a structured plan with sections
+    1. Gets configuration for the report structure and search parameters
+    2. Generates search queries to gather context for planning
+    3. Performs web searches using those queries
+    4. Uses an LLM to generate a structured plan with sections
     
     Args:
         state: Current graph state containing the report topic
@@ -88,32 +90,28 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     
     structured_llm = writer_model.with_structured_output(Queries)
 
-    # # Format system instructions
-    # system_instructions_query = report_planner_query_writer_instructions.format(topic=topic, report_organization=report_structure, number_of_queries=number_of_queries)
+    # Format system instructions
+    system_instructions_query = report_planner_query_writer_instructions.format(topic=topic, report_organization=report_structure, number_of_queries=number_of_queries)
 
-    # # Generate queries  
-    # results = structured_llm.invoke([SystemMessage(content=system_instructions_query),
-    #                                  HumanMessage(content="Generate search queries that will help with planning the sections of the report.")])
+    # Generate queries  
+    results = structured_llm.invoke([SystemMessage(content=system_instructions_query),
+                                     HumanMessage(content="Generate search queries that will help with planning the sections of the report.")])
 
-    # # Web search
-    # query_list = [query.search_query for query in results.queries]
+    # Web search
+    query_list = [query.search_query for query in results.queries]
 
-    # # Search the web with parameters
-    # source_str = await select_and_execute_search(search_api, query_list, params_to_pass)
-
-    title = state['title']
-    abstract = state['abstract']
-    paper_content = state['paper_content']
+    # Search the web with parameters
+    source_str = await select_and_execute_search(search_api, query_list, params_to_pass)
 
     # Format system instructions
-    system_instructions_sections = report_planner_instructions.format(topic=topic, report_organization=report_structure, feedback=feedback, title=title, abstract=abstract, paper_content=paper_content)
+    system_instructions_sections = report_planner_instructions.format(topic=topic, report_organization=report_structure, context=source_str, feedback=feedback)
 
     # Set the planner
     planner_provider = get_config_value(configurable.planner_provider)
     planner_model = get_config_value(configurable.planner_model)
 
     # Report planner instructions
-    planner_message = """Generate the sections of the bibliography. Your response must include a 'sections' field containing a list of sections. 
+    planner_message = """Generate the sections of the report. Your response must include a 'sections' field containing a list of sections. 
                         Each section must have: name, description, plan, research, and content fields."""
 
     # Run the planner
@@ -134,11 +132,7 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
 
     # Get sections
     sections = report_sections.sections
-    
-    # Change section.research to 'Yes' for all section in sections, because we are doing a bibliography
-    for section in sections:
-        section.research = True
-        
+
     return {"sections": sections}
 
 def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Literal["generate_report_plan","build_section_with_web_research"]]:
@@ -170,12 +164,12 @@ def human_feedback(state: ReportState, config: RunnableConfig) -> Command[Litera
     )
 
     # Get feedback on the report plan from interrupt
-    interrupt_message = f"""Please provide feedback on the following bibliography plan. 
+    interrupt_message = f"""Please provide feedback on the following report plan. 
                         \n\n{sections_str}\n
-                        \nDoes the bibliography plan meet your needs?\nPass 'true' to approve the bibliography plan.\nOr, provide feedback to regenerate the bibliography plan:"""
+                        \nDoes the report plan meet your needs?\nPass 'true' to approve the report plan.\nOr, provide feedback to regenerate the report plan:"""
 
-    feedback = interrupt(interrupt_message)
-    # feedback = True
+    # feedback = interrupt(interrupt_message)
+    feedback = True
 
     # If the user approves the report plan, kick off section writing
     if isinstance(feedback, bool) and feedback is True:
@@ -223,9 +217,8 @@ def generate_queries(state: SectionState, config: RunnableConfig):
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions
-    section_topic = section.name + ": " + section.description
     system_instructions = query_writer_instructions.format(topic=topic, 
-                                                           section_topic=section_topic, 
+                                                           section_topic=section.description, 
                                                            number_of_queries=number_of_queries)
 
     # Generate queries  
@@ -294,10 +287,9 @@ def write_section(state: SectionState, config: RunnableConfig) -> Command[Litera
     configurable = Configuration.from_runnable_config(config)
 
     # Format system instructions
-    section_topic = section.name + ": " + section.description
     section_writer_inputs_formatted = section_writer_inputs.format(topic=topic, 
                                                              section_name=section.name, 
-                                                             section_topic=section_topic, 
+                                                             section_topic=section.description, 
                                                              context=source_str, 
                                                              section_content=section.content)
 
@@ -313,12 +305,12 @@ def write_section(state: SectionState, config: RunnableConfig) -> Command[Litera
     section.content = section_content.content
 
     # Grade prompt 
-    section_grader_message = ("Grade the bibliography and consider follow-up questions for missing information. "
+    section_grader_message = ("Grade the report and consider follow-up questions for missing information. "
                               "If the grade is 'pass', return empty strings for all follow-up queries. "
                               "If the grade is 'fail', provide specific search queries to gather missing information.")
     
     section_grader_instructions_formatted = section_grader_instructions.format(topic=topic, 
-                                                                               section_topic=section_topic,
+                                                                               section_topic=section.description,
                                                                                section=section.content, 
                                                                                number_of_follow_up_queries=configurable.number_of_queries)
 
@@ -372,7 +364,7 @@ def write_final_sections(state: SectionState, config: RunnableConfig):
 
     # Get state 
     topic = state["topic"]
-    section = state["sections"]
+    section = state["section"]
     completed_report_sections = state["report_sections_from_research"]
     
     # Format system instructions
@@ -384,7 +376,7 @@ def write_final_sections(state: SectionState, config: RunnableConfig):
     writer_model = init_chat_model(model=MODEL, model_provider=MODEL_PROVIDER)
     
     section_content = writer_model.invoke([SystemMessage(content=system_instructions),
-                                           HumanMessage(content="Generate a bibliography section based on the provided sources.")])
+                                           HumanMessage(content="Generate a report section based on the provided sources.")])
     
     # Write content to section 
     section.content = section_content.content
@@ -489,8 +481,7 @@ builder.add_node("compile_final_report", compile_final_report)
 builder.add_edge(START, "generate_report_plan")
 builder.add_edge("generate_report_plan", "human_feedback")
 builder.add_edge("build_section_with_web_research", "gather_completed_sections")
-# builder.add_conditional_edges("gather_completed_sections", initiate_final_section_writing, ["write_final_sections"])
-builder.add_edge("gather_completed_sections", "write_final_sections")
+builder.add_conditional_edges("gather_completed_sections", initiate_final_section_writing, ["write_final_sections"])
 builder.add_edge("write_final_sections", "compile_final_report")
 builder.add_edge("compile_final_report", END)
 

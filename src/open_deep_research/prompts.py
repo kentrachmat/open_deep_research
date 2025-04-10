@@ -1,65 +1,65 @@
-report_planner_query_writer_instructions="""You are performing research for a report. 
+# report_planner_query_writer_instructions="""You are performing research for a report. 
 
-<Report topic>
+# <Report topic>
+# {topic}
+# </Report topic>
+
+# <Report organization>
+# {report_organization}
+# </Report organization>
+
+# <Task>
+# Your goal is to generate {number_of_queries} web search queries that will help gather information for planning the report sections. 
+
+# The queries should:
+
+# 1. Be related to the Report topic
+# 2. Help satisfy the requirements specified in the report organization
+
+# Make the queries specific enough to find high-quality, relevant sources while covering the breadth needed for the report structure.
+# </Task>
+
+# <Format>
+# Call the Queries tool 
+# </Format>
+# """
+
+report_planner_instructions="""I want a plan for a bibliography that is concise and closely related to the user-provided paper.
+
+<Bibliography topic>
+The topic of the bibliography is:
 {topic}
-</Report topic>
+</Bibliography topic>
 
-<Report organization>
+<Bibliography organization>
+The bibliography should follow this organization: 
 {report_organization}
-</Report organization>
+</Bibliography organization>
+
+<User-provided paper>
+Here is content of the user-provided paper to use to plan the sections of the bibliography: 
+{paper_content}
+</User-provided paper>
 
 <Task>
-Your goal is to generate {number_of_queries} web search queries that will help gather information for planning the report sections. 
+Generate a list of sections for the bibliography. Your plan should be tight and focused on the user-provided paper with NO overlapping sections or unnecessary filler. 
 
-The queries should:
-
-1. Be related to the Report topic
-2. Help satisfy the requirements specified in the report organization
-
-Make the queries specific enough to find high-quality, relevant sources while covering the breadth needed for the report structure.
-</Task>
-
-<Format>
-Call the Queries tool 
-</Format>
-"""
-
-report_planner_instructions="""I want a plan for a report that is concise and focused.
-
-<Report topic>
-The topic of the report is:
-{topic}
-</Report topic>
-
-<Report organization>
-The report should follow this organization: 
-{report_organization}
-</Report organization>
-
-<Context>
-Here is context to use to plan the sections of the report: 
-{context}
-</Context>
-
-<Task>
-Generate a list of sections for the report. Your plan should be tight and focused with NO overlapping sections or unnecessary filler. 
-
-For example, a good report structure might look like:
-1/ intro
-2/ overview of topic A
-3/ overview of topic B
-4/ comparison between A and B
-5/ conclusion
+For example, a good bibliography structure might look like:
+1/ intro (taken from user-provided paper)
+2/ related work A (that is closely related to the user-provided paper's related work A)
+3/ related work B (that is closely related to the user-provided paper's related work B)
+4/ related experiments to the user-provided paper's experiment C
+5/ related experiments to the user-provided paper's experiment D
+6/ conclusion
 
 Each section should have the fields:
 
-- Name - Name for this section of the report.
-- Description - Brief overview of the main topics covered in this section.
-- Research - Whether to perform web research for this section of the report.
-- Content - The content of the section, which you will leave blank for now.
+- Name - Name for this section of the bibliography.
+- Description - Brief overview of the main topics covered in this section. Avoid general statement and always cleverly repeat the original context from the user-provided paper to avoid any possible confusion.
+- Research - Whether to perform web research for this section of the bibliography. Always answer Yes.
+- Content - The citations related of the section, which you will leave blank for now.
 
 Integration guidelines:
-- Include examples and implementation details within main topic sections, not as separate sections
 - Ensure each section has a distinct purpose with no content overlap
 - Combine related concepts rather than separating them
 
@@ -67,7 +67,7 @@ Before submitting, review your structure to ensure it has no redundant sections 
 </Task>
 
 <Feedback>
-Here is feedback on the report structure from review (if any):
+Here is feedback on the bibliography structure from review (if any):
 {feedback}
 </Feedback>
 
@@ -76,23 +76,24 @@ Call the Sections tool
 </Format>
 """
 
-query_writer_instructions="""You are an expert technical writer crafting targeted web search queries that will gather comprehensive information for writing a technical report section.
+query_writer_instructions="""You are an expert technical writer crafting targeted web search queries that will gather comprehensive related citations for a bibliography.
 
-<Report topic>
+<Bibliography topic>
 {topic}
-</Report topic>
+</Bibliography topic>
 
 <Section topic>
 {section_topic}
 </Section topic>
 
 <Task>
-Your goal is to generate {number_of_queries} search queries that will help gather comprehensive information above the section topic. 
+Your goal is to generate {number_of_queries} search queries that will help gather comprehensive related citations above the section topic. 
 
 The queries should:
 
 1. Be related to the topic 
 2. Examine different aspects of the topic
+3. Represent a short phrase to be used for searching on Arxiv
 
 Make the queries specific enough to find high-quality, relevant sources.
 </Task>
@@ -102,14 +103,14 @@ Call the Queries tool
 </Format>
 """
 
-section_writer_instructions = """Write one section of a research report.
+section_writer_instructions = """Write one section of a research bibliography.
 
 <Task>
-1. Review the report topic, section name, and section topic carefully.
+1. Review the bibliography topic, section name, and section topic carefully.
 2. If present, review any existing section content. 
 3. Then, look at the provided Source material.
-4. Decide the sources that you will use it to write a report section.
-5. Write the report section and list your sources. 
+4. Decide the sources that you will use it to include in the bibliography section.
+5. Write the bibliography section and list your sources. 
 </Task>
 
 <Writing Guidelines>
@@ -138,9 +139,9 @@ section_writer_instructions = """Write one section of a research report.
 """
 
 section_writer_inputs=""" 
-<Report topic>
+<Bibliography topic>
 {topic}
-</Report topic>
+</Bibliography topic>
 
 <Section name>
 {section_name}
@@ -159,11 +160,11 @@ section_writer_inputs="""
 </Source material>
 """
 
-section_grader_instructions = """Review a report section relative to the specified topic:
+section_grader_instructions = """Review a bibliography section relative to the specified topic:
 
-<Report topic>
+<Bibliography topic>
 {topic}
-</Report topic>
+</Bibliography topic>
 
 <section topic>
 {section_topic}
@@ -174,9 +175,9 @@ section_grader_instructions = """Review a report section relative to the specifi
 </section content>
 
 <task>
-Evaluate whether the section content adequately addresses the section topic.
+Evaluate whether the section content only includes related works adequately addresses the section topic.
 
-If the section content does not adequately address the section topic, generate {number_of_follow_up_queries} follow-up search queries to gather missing information.
+If the section content does not only includes related works adequately address the section topic, generate {number_of_follow_up_queries} follow-up search queries to gather missing information.
 </task>
 
 <format>
@@ -191,11 +192,11 @@ follow_up_queries: List[SearchQuery] = Field(
 </format>
 """
 
-final_section_writer_instructions="""You are an expert technical writer crafting a section that synthesizes information from the rest of the report.
+final_section_writer_instructions="""You are an expert technical writer crafting a section that includes all relevant citations from the provided bibliography.
 
-<Report topic>
+<Bibliography topic>
 {topic}
-</Report topic>
+</Bibliography topic>
 
 <Section name>
 {section_name}
@@ -205,32 +206,32 @@ final_section_writer_instructions="""You are an expert technical writer crafting
 {section_topic}
 </Section topic>
 
-<Available report content>
+<Available bibliography content>
 {context}
-</Available report content>
+</Available bibliography content>
 
 <Task>
 1. Section-Specific Approach:
 
 For Introduction:
-- Use # for report title (Markdown format)
+- Use # for bibliography title (Markdown format)
 - 50-100 word limit
 - Write in simple and clear language
-- Focus on the core motivation for the report in 1-2 paragraphs
-- Use a clear narrative arc to introduce the report
+- Focus on the core motivation for the bibliography in 1-2 paragraphs
+- Use a clear narrative arc to introduce the bibliography
 - Include NO structural elements (no lists or tables)
 - No sources section needed
 
 For Conclusion/Summary:
 - Use ## for section title (Markdown format)
 - 100-150 word limit
-- For comparative reports:
+- For comparative bibliography:
     * Must include a focused comparison table using Markdown table syntax
-    * Table should distill insights from the report
+    * Table should distill insights from the bibliography
     * Keep table entries clear and concise
-- For non-comparative reports: 
-    * Only use ONE structural element IF it helps distill the points made in the report:
-    * Either a focused table comparing items present in the report (using Markdown table syntax)
+- For non-comparative bibliography: 
+    * Only use ONE structural element IF it helps distill the points made in the bibliography:
+    * Either a focused table comparing items present in the bibliography (using Markdown table syntax)
     * Or a short list using proper Markdown list syntax:
       - Use `*` or `-` for unordered lists
       - Use `1.` for ordered lists
@@ -245,7 +246,7 @@ For Conclusion/Summary:
 </Task>
 
 <Quality Checks>
-- For introduction: 50-100 word limit, # for report title, no structural elements, no sources section
+- For introduction: 50-100 word limit, # for bibliography title, no structural elements, no sources section
 - For conclusion: 100-150 word limit, ## for section title, only ONE structural element at most, no sources section
 - Markdown format
 - Do not include word count or any preamble in your response
